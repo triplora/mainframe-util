@@ -42,6 +42,12 @@ object Services {
 
   def storage(): Storage = storage(storageCredentials())
 
+  /** Low-level GCS client */
+  def storageApi(credentials: Credentials): com.google.api.services.storage.Storage = {
+    new com.google.api.services.storage.Storage(CCATransportFactory.getTransportInstance,
+      JacksonFactory.getDefaultInstance, new HttpCredentialsAdapter(credentials))
+  }
+
   def bigqueryCredentials(): GoogleCredentials =
     GoogleCredentials.getApplicationDefault.createScoped(BigqueryScopes.BIGQUERY)
 

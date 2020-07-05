@@ -31,16 +31,16 @@ object Update {
       GoogleCredentials.getApplicationDefault().createScoped(StorageScopes.DEVSTORAGE_READ_ONLY)
     }
 
-    CloudLogging.configureLogging(credentials = creds, errorLogs = Seq("org.apache.http"))
+    CloudLogging.configureLogging(credentials = creds, errorLogs = Seq("org.apache.http","io.grpc"))
 
     val gcs = Services.storage(creds)
 
-    val prefixes = Seq(
+    val prefixes = sys.env.get("PREFIX").map(_.split(',').toSeq).getOrElse(Seq(
       "mainframe-connector",
       "mainframe-interpreter",
       "mainframe-util",
       "sql-parser"
-    )
+    ))
 
     for (prefix <- prefixes) {
       val jars = new PageIterator[Blob](gcs.list(bucket, BlobListOption.prefix(prefix)))

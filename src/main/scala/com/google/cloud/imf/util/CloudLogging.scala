@@ -66,6 +66,12 @@ object CloudLogging {
     def logJson(entries: Iterable[(String,Any)], data: java.util.Map[String,Any], severity: Severity): Unit =
       _log.logJson(jsonData(entries, data), severity)
 
+    def info(msg: String, data: java.util.Map[String,Any]): Unit =
+      log(msg, data, Info)
+
+    def infoJson(entries: Iterable[(String,Any)], data: java.util.Map[String,Any]): Unit =
+      logJson(entries, data, Info)
+
     def error(msg: String, data: java.util.Map[String,Any], throwable: Throwable): Unit = {
       val m = stringData(msg, data)
       if (throwable != null) {
