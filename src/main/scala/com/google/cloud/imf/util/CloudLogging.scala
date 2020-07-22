@@ -115,7 +115,6 @@ object CloudLogging {
           client.entries.write(req).execute
         } catch {
           case e: Throwable =>
-            System.err.println(s"CloudLog: ${e.getMessage}")
         }
       }
     }
@@ -135,7 +134,6 @@ object CloudLogging {
           client.entries.write(req).execute
         } catch {
           case e: Throwable =>
-            System.err.println(s"CloudLog: ${e.getMessage}")
         }
       }
     }
