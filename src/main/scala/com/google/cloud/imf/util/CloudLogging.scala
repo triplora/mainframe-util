@@ -111,11 +111,7 @@ object CloudLogging {
           .setResource(Global)
           .setEntries(ImmutableList.of(entry))
 
-        try {
-          client.entries.write(req).execute
-        } catch {
-          case e: Throwable =>
-        }
+        client.entries.write(req).execute
       }
     }
 
@@ -130,11 +126,7 @@ object CloudLogging {
           .setLogName(logName)
           .setResource(Global)
           .setEntries(ImmutableList.of(entry))
-        try {
-          client.entries.write(req).execute
-        } catch {
-          case e: Throwable =>
-        }
+        client.entries.write(req).execute
       }
     }
   }
