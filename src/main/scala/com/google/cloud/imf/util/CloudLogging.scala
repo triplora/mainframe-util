@@ -1,14 +1,11 @@
 package com.google.cloud.imf.util
 
-import java.io.{BufferedOutputStream, ByteArrayOutputStream, OutputStream, PrintStream, PrintWriter, StringWriter}
-import java.nio.channels.Channels
-import java.nio.charset.StandardCharsets
+import java.io.{ByteArrayOutputStream, PrintStream, PrintWriter, StringWriter}
+import java.nio.charset.{Charset, StandardCharsets}
 
 import com.google.api.services.logging.v2.Logging
 import com.google.api.services.logging.v2.model.{LogEntry, MonitoredResource, WriteLogEntriesRequest}
 import com.google.auth.Credentials
-import com.google.auth.oauth2.AccessToken
-import com.google.cloud.storage.{BlobInfo, Storage}
 import com.google.common.collect.ImmutableList
 import org.apache.log4j.spi.LoggingEvent
 import org.apache.log4j.{AppenderSkeleton, ConsoleAppender, Level, LogManager, PatternLayout}
@@ -250,10 +247,12 @@ object CloudLogging {
 
   /** Redirect stdout and stderr to Cloud Logging
    *  in addition to default output streams
+   * @param logger CloudLogger instance
+   * @param charset Charset used to decode output bytes
    */
-  def cloudLoggingRedirect(logger: CloudLogger): Unit = {
-    val errw = new BufferedCloudLoggerOutputStream("stderr", logger, Error)
-    val outw = new BufferedCloudLoggerOutputStream("stdout", logger, Info)
+  def cloudLoggingRedirect(logger: CloudLogger, charset: Charset): Unit = {
+    val errw = new BufferedCloudLoggerOutputStream("stderr", logger, Error, charset)
+    val outw = new BufferedCloudLoggerOutputStream("stdout", logger, Info, charset)
     Runtime.getRuntime.addShutdownHook(new CloserThread(errw, outw))
     System.setErr(new DualPrintStream(System.err, errw))
     System.setOut(new DualPrintStream(System.out, outw))

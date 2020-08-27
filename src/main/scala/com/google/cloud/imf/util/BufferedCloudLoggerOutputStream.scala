@@ -2,13 +2,14 @@ package com.google.cloud.imf.util
 
 import java.io.OutputStream
 import java.nio.ByteBuffer
-import java.nio.charset.StandardCharsets
+import java.nio.charset.Charset
 
 import com.google.cloud.imf.util.CloudLogging.{CloudLogger, Severity}
 
 class BufferedCloudLoggerOutputStream(msgType: String,
                                       logger: CloudLogger,
                                       severity: Severity,
+                                      charset: Charset,
                                       size: Int = 200*1024) extends OutputStream {
   private val buf: ByteBuffer = ByteBuffer.allocate(size)
   private val data1: java.util.Map[String,Any] = {
@@ -38,7 +39,7 @@ class BufferedCloudLoggerOutputStream(msgType: String,
     buf.flip()
     if (buf.hasRemaining) {
       logger.log(
-        new String(buf.array(), 0, buf.remaining(), StandardCharsets.UTF_8), data1, severity)
+        new String(buf.array(), 0, buf.remaining(), charset), data1, severity)
     }
     buf.clear()
   }

@@ -8,7 +8,7 @@ public class DualPrintStream extends PrintStream {
     private PrintStream ps1;
 
     public DualPrintStream(PrintStream ps, OutputStream os) throws UnsupportedEncodingException {
-        super(os, false, "UTF-8");
+        super(os, false);
         this.ps1 = ps;
     }
 
