@@ -1,11 +1,14 @@
 package com.google.cloud.imf.util
 
-import java.io.{ByteArrayOutputStream, PrintStream, PrintWriter, StringWriter}
+import java.io.{BufferedOutputStream, ByteArrayOutputStream, OutputStream, PrintStream, PrintWriter, StringWriter}
+import java.nio.channels.Channels
 import java.nio.charset.StandardCharsets
 
 import com.google.api.services.logging.v2.Logging
 import com.google.api.services.logging.v2.model.{LogEntry, MonitoredResource, WriteLogEntriesRequest}
 import com.google.auth.Credentials
+import com.google.auth.oauth2.AccessToken
+import com.google.cloud.storage.{BlobInfo, Storage}
 import com.google.common.collect.ImmutableList
 import org.apache.log4j.spi.LoggingEvent
 import org.apache.log4j.{AppenderSkeleton, ConsoleAppender, Level, LogManager, PatternLayout}
@@ -44,9 +47,13 @@ object CloudLogging {
   class CloudLogger(val loggerName: String, private var _log: Log) {
     def setLog(log: Log): Unit = _log = log
 
+    private val data0: java.util.Map[String,Any] = new java.util.HashMap[String,Any]()
+    def setData(data: java.util.Map[String,Any]): Unit = data0.putAll(data)
+
     private def stringData(msg: String, data: java.util.Map[String,Any]): java.util.Map[String,Any] = {
       val m = new java.util.HashMap[String,Any]()
       if (data != null) m.putAll(data)
+      if (data0 != null) m.putAll(data0)
       m.put("msg", msg)
       m.put("logger", loggerName)
       m
@@ -56,6 +63,7 @@ object CloudLogging {
       val m = new java.util.HashMap[String,Any]()
       for ((k,v) <- entries) m.put(k,v)
       if (data != null) m.putAll(data)
+      if (data0 != null) m.putAll(data0)
       m.put("logger", loggerName)
       m
     }
@@ -169,7 +177,7 @@ object CloudLogging {
       if (e.getThrowableInformation != null){
         val w = new ByteArrayWriter
         e.getThrowableInformation
-          .getThrowable.printStackTrace()
+          .getThrowable.printStackTrace(w)
         m.put("stackTrace", w.result)
       }
       m
@@ -239,4 +247,15 @@ object CloudLogging {
 
   def getLogger(cls: Class[_]): CloudLogger =
     getLogger(cls.getSimpleName.stripSuffix("$"))
+
+  /** Redirect stdout and stderr to Cloud Logging
+   *  in addition to default output streams
+   */
+  def cloudLoggingRedirect(logger: CloudLogger): Unit = {
+    val errw = new BufferedCloudLoggerOutputStream("stderr", logger, Error)
+    val outw = new BufferedCloudLoggerOutputStream("stdout", logger, Info)
+    Runtime.getRuntime.addShutdownHook(new CloserThread(errw, outw))
+    System.setErr(new DualPrintStream(System.err, errw))
+    System.setOut(new DualPrintStream(System.out, outw))
+  }
 }
