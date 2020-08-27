@@ -2,17 +2,14 @@ package com.google.cloud.imf.util;
 
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.io.UnsupportedEncodingException;
 
 public class DualPrintStream extends PrintStream {
     private PrintStream ps1;
 
-    public DualPrintStream(PrintStream ps, PrintStream ps1) {
-        super(ps, false);
-        this.ps1 = ps1;
-    }
-
-    public DualPrintStream(PrintStream ps, OutputStream os) {
-        this(ps, new PrintStream(os, false));
+    public DualPrintStream(PrintStream ps, OutputStream os) throws UnsupportedEncodingException {
+        super(os, false, "UTF-8");
+        this.ps1 = ps;
     }
 
     @Override
