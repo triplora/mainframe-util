@@ -251,10 +251,26 @@ object CloudLogging {
    * @param charset Charset used to decode output bytes
    */
   def cloudLoggingRedirect(logger: CloudLogger, charset: Charset): Unit = {
+    System.out.println("redirecting stderr and stdout to Cloud Logging")
     val errw = new BufferedCloudLoggerOutputStream("stderr", logger, Error, charset)
     val outw = new BufferedCloudLoggerOutputStream("stdout", logger, Info, charset)
-    Runtime.getRuntime.addShutdownHook(new CloserThread(System.err, errw::outw::Nil))
+    cloudLoggingOut = outw
+    cloudLoggingOut = errw
     System.setErr(new DualPrintStream(System.err, errw))
     System.setOut(new DualPrintStream(System.out, outw))
+  }
+
+  private var cloudLoggingOut: BufferedCloudLoggerOutputStream = _
+  private var cloudLoggingErr: BufferedCloudLoggerOutputStream = _
+
+  def flush(): Unit = {
+    if (cloudLoggingOut != null) {
+      cloudLoggingOut.flush()
+      cloudLoggingOut = null
+    }
+    if (cloudLoggingErr != null) {
+      cloudLoggingErr.flush()
+      cloudLoggingErr = null
+    }
   }
 }
