@@ -253,7 +253,7 @@ object CloudLogging {
   def cloudLoggingRedirect(logger: CloudLogger, charset: Charset): Unit = {
     val errw = new BufferedCloudLoggerOutputStream("stderr", logger, Error, charset)
     val outw = new BufferedCloudLoggerOutputStream("stdout", logger, Info, charset)
-    Runtime.getRuntime.addShutdownHook(new CloserThread(System.err, errw::outw::Nil))
+    Runtime.getRuntime.addShutdownHook(new CloserThread(errw, outw))
     System.setErr(new DualPrintStream(System.err, errw))
     System.setOut(new DualPrintStream(System.out, outw))
   }
