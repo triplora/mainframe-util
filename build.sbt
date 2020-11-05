@@ -15,47 +15,50 @@
  */
 organization := "com.google.cloud.imf"
 name := "mainframe-util"
-version := "1.1.0-SNAPSHOT"
+version := "2.0.0"
 
 scalaVersion := "2.13.1"
 
+val grpcVersion = "1.33.1"
+
 val exGuava = ExclusionRule(organization = "com.google.guava")
-val exNs = ExclusionRule(organization = "io.grpc", name = "grpc-netty-shaded")
+val exOc = ExclusionRule(organization = "io.opencensus")
+val exProto = ExclusionRule(organization = "com.google.protobuf")
+val exGrpc = ExclusionRule(organization = "io.grpc")
+val exC1 = ExclusionRule(organization = "com.google.cloud", name = "google-cloud-core")
+val exC2 = ExclusionRule(organization = "com.google.cloud", name = "google-cloud-core-http")
+val exNettyShaded = ExclusionRule(organization = "io.grpc", name = "grpc-netty-shaded")
+val exConscrypt = ExclusionRule(organization = "org.conscrypt", name = "conscrypt-openjdk-uber")
+val exProtos = ExclusionRule(organization = "com.google.api.grpc", name = "proto-google-common-protos")
 
 libraryDependencies ++= Seq(
+  "com.google.guava" % "guava" % "30.0-jre",
   "com.github.scopt" %% "scopt" % "3.7.1",
   "org.scalatest" %% "scalatest" % "3.1.1" % Test
 )
 
-libraryDependencies ++= Seq("com.google.guava" % "guava" % "29.0-jre")
-
-val grpcVersion = "1.30.2"
+libraryDependencies ++= Seq(
+  "com.google.cloud" % "google-cloud-core-http" % "1.94.0",
+  "com.google.http-client" % "google-http-client-apache-v2" % "1.38.0",
+  "com.google.api" % "gax-grpc" % "1.60.0",
+).map(_ excludeAll(exGuava))
+  .map(_ excludeAll(exGrpc))
 
 libraryDependencies ++= Seq(
-  "com.google.api-client" % "google-api-client" % "1.30.9", // provided for google-cloud-bigquery
-  "com.google.apis" % "google-api-services-logging" % "v2-rev20200619-1.30.9",
-  "com.google.auto.value" % "auto-value-annotations" % "1.7.3", // provided for google-cloud-bigquery
-  "com.google.http-client" % "google-http-client" % "1.35.0",
-  "com.google.http-client" % "google-http-client-apache-v2" % "1.35.0",
-  "com.google.http-client" % "google-http-client-jackson2" % "1.35.0",
-  "com.google.cloud" % "google-cloud-bigquery" % "1.116.3",
-  "com.google.cloud" % "google-cloud-storage" % "1.111.1",
-  "com.google.oauth-client" % "google-oauth-client" % "1.30.6",
-  "com.google.protobuf" % "protobuf-java" % "3.12.2",
-  "com.google.protobuf" % "protobuf-java-util" % "3.12.2",
+  "com.google.apis" % "google-api-services-logging" % "v2-rev20201101-1.30.10",
+  "com.google.cloud" % "google-cloud-bigquery" % "1.124.3",
+  "com.google.cloud" % "google-cloud-bigquerystorage" % "1.6.1",
+  "com.google.cloud" % "google-cloud-storage" % "1.113.3",
   "log4j" % "log4j" % "1.2.17",
-  "org.apache.httpcomponents" % "httpclient" % "4.5.12",
-  "org.apache.httpcomponents" % "httpcore" % "4.4.13",
+  "org.apache.avro" % "avro" % "1.7.7",
   "org.slf4j" % "slf4j-api" % "1.7.30",
-  "org.slf4j" % "slf4j-log4j12" % "1.7.30",
-  "io.opencensus" % "opencensus-api" % "0.26.0",
-  "io.grpc" % "grpc-context" % grpcVersion,
-  "io.grpc" % "grpc-core" % grpcVersion,
-  "io.grpc" % "grpc-netty" % grpcVersion,
-  "io.grpc" % "grpc-okhttp" % grpcVersion,
-  "io.grpc" % "grpc-protobuf" % grpcVersion,
-  "io.grpc" % "grpc-stub" % grpcVersion
-).map(_ excludeAll(exGuava,exNs))
+  "org.slf4j" % "slf4j-log4j12" % "1.7.30",  
+).map(_ excludeAll(exGuava,exProto,exProtos,exGrpc,exC1,exC2,exConscrypt,exNettyShaded))
+
+libraryDependencies ++= Seq(
+  "io.grpc" % "grpc-all" % grpcVersion
+).map(_ excludeAll(exGuava,exProto,exProtos,exC1,exC2,exConscrypt,exNettyShaded))
+
 
 // Don't run tests during assembly
 test in assembly := Seq()
@@ -72,7 +75,7 @@ assemblyExcludedJars in assembly := {
     .filter(file => IBMJars.contains(file.data.getName))
 }
 
-publishMavenStyle := true
+publishMavenStyle := false
 
 resourceGenerators in Compile += Def.task {
   val file = (resourceDirectory in Compile).value / "mainframe-util-build.txt"

@@ -223,6 +223,16 @@ object CloudLogging {
     System.err.println(s)
   }
 
+  def printStackTrace(e: Throwable): String = {
+    val sw = new StringWriter()
+    val pw = new PrintWriter(sw)
+    e.printStackTrace(pw)
+    val stackTrace = sw.toString
+    stderr(stackTrace)
+    stdout(stackTrace)
+    stackTrace
+  }
+
   def configureStdout(logger:CloudLogger): Unit = {
     val outw: OutputStream =
       new BufferedCloudLoggerOutputStream("stdout", logger, Info, StandardCharsets.UTF_8)
