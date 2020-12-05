@@ -8,12 +8,17 @@ import com.google.api.services.logging.v2.model.{LogEntry, MonitoredResource, Wr
 import com.google.auth.Credentials
 import com.google.common.collect.ImmutableList
 import org.apache.log4j.spi.LoggingEvent
-import org.apache.log4j.{AppenderSkeleton, Level, LogManager, PatternLayout, WriterAppender}
+import org.apache.log4j.{Appender, AppenderSkeleton, Layout, Level, LogManager, Logger, PatternLayout, WriterAppender}
 
 import scala.collection.mutable
 
 /** Provides methods to  */
 object CloudLogging {
+  private val cloudLoggingLoggers = mutable.Map.empty[String,CloudLogger]
+  private var cloudLoggingLogInstance: Log = StdOutLog
+  private var cloudLoggingStdOut: PrintStream = _
+  private var cloudLoggingStdErr: PrintStream = _
+
   sealed trait Severity {def value: String}
   case object Debug extends Severity {override def value: String = "DEBUG"}
   case object Info extends Severity {override def value: String = "INFO"}
@@ -44,7 +49,8 @@ object CloudLogging {
     def setLog(log: Log): Unit = _log = log
 
     private val mdc: java.util.Map[String,Any] = new java.util.HashMap[String,Any]()
-    def setData(data: java.util.Map[String,Any]): Unit = mdc.putAll(data)
+    def setData(data: java.util.Map[String,Any]): Unit =
+      if (data != null) mdc.putAll(data)
 
     private def stringData(msg: String, data: java.util.Map[String,Any]): java.util.Map[String,Any] = {
       val m = new java.util.HashMap[String,Any]()
@@ -76,13 +82,13 @@ object CloudLogging {
     def infoJson(entries: Iterable[(String,Any)], data: java.util.Map[String,Any]): Unit =
       logJson(entries, data, Info)
 
-    def error(msg: String, data: java.util.Map[String,Any], throwable: Throwable): Unit = {
+    def error(msg: String, data: java.util.Map[String,Any], e: Throwable): Unit = {
       val m = stringData(msg, data)
-      if (throwable != null) {
-        val w = new StringWriter()
-        throwable.printStackTrace(new PrintWriter(w))
-        m.put("throwable", throwable.getClass.getCanonicalName.stripSuffix("$"))
-        m.put("stackTrace", w.toString)
+      if (e != null) {
+        m.put("throwable", e.getClass.getCanonicalName.stripSuffix("$"))
+        if (e.getMessage != null)
+          m.put("message", e.getMessage)
+        m.put("stackTrace", getStackTrace(e))
       }
       _log.logJson(m, CloudLogging.Error)
     }
@@ -101,6 +107,9 @@ object CloudLogging {
 
   class CloudLog(client: Logging, project: String, logId: String) extends Log {
     private val logName: String = s"projects/$project/logs/$logId"
+    private val mdc: java.util.Map[String,Any] = new java.util.HashMap[String,Any]()
+    def putMdc(data: java.util.Map[String, Any]): Unit =
+      if (data != null) mdc.putAll(data)
 
     override def log(msg: String, severity: Severity): Unit = {
       if (client != null && severity != null && severity != Off) {
@@ -121,6 +130,7 @@ object CloudLogging {
 
     override def logJson(data: java.util.Map[String, Any], severity: Severity): Unit = {
       if (client != null && data != null && severity != null && severity != Off) {
+        data.putAll(mdc)
         val entry: LogEntry = new LogEntry()
           .setJsonPayload(data.asInstanceOf[java.util.Map[String,Object]])
           .setSeverity(severity.value)
@@ -140,14 +150,11 @@ object CloudLogging {
     def result: String = new String(os.toByteArray, StandardCharsets.UTF_8)
   }
 
-  class StackDriverLoggingAppender(private var log: Log) extends AppenderSkeleton {
-    private var mdc: java.util.Map[String,Any] = _
+  class CloudLoggingAppender(private var log: Log) extends AppenderSkeleton {
+    private val mdc: java.util.Map[String,Any] = new java.util.HashMap()
     def setLog(log: Log): Unit = this.log = log
-    def setData(data: java.util.Map[String,Any]): Unit = {
-      if (mdc == null)
-        mdc = new java.util.HashMap()
-      mdc.putAll(data)
-    }
+    def setData(data: java.util.Map[String,Any]): Unit =
+      if (data != null) mdc.putAll(data)
 
     private def toMap(e: LoggingEvent): java.util.Map[String,Any] = {
       val m = new java.util.HashMap[String,Any]
@@ -208,86 +215,153 @@ object CloudLogging {
     override def requiresLayout(): Boolean = false
   }
 
-  private val loggers = mutable.Map.empty[String,CloudLogger]
-  private var instance: Log = StdOutLog
-  private var clOut: PrintStream = _
-  private var clErr: PrintStream = _
-
   def stdout(s: String): Unit = {
-    if (clOut != null) clOut.println(s)
-    System.out.println(s)
+    Console.out.println(s)
+    if (cloudLoggingStdOut != null) cloudLoggingStdOut.println(s)
   }
 
   def stderr(s: String): Unit = {
-    if (clErr != null) clErr.println(s)
-    System.err.println(s)
+    Console.err.println(s)
+    if (cloudLoggingStdErr != null) cloudLoggingStdErr.println(s)
   }
 
-  def printStackTrace(e: Throwable): String = {
+  /** Print to both stdout and stderr */
+  def stdOutAndStdErr(s: String): Unit = {
+    stdout(s)
+    stderr(s)
+  }
+
+  def getStackTrace(e: Throwable): String = {
     val sw = new StringWriter()
     val pw = new PrintWriter(sw)
     e.printStackTrace(pw)
-    val stackTrace = sw.toString
-    stderr(stackTrace)
-    stdout(stackTrace)
-    stackTrace
+    sw.toString
   }
 
+  /** Prints optional user message and error message to stdout and stderr
+   *  Prints stack trace to stderr
+   */
+  def printStackTrace(e: Throwable, message: String = ""): Unit = {
+    val sb = new StringBuilder
+    if (message.nonEmpty) {
+      sb.append(message)
+      sb.append(": \n")
+    }
+    if (e.getMessage != null)
+      sb.append(e.getMessage)
+    else
+      sb.append(s"${e.getClass.getSimpleName.stripSuffix("$")} was thrown")
+    stdOutAndStdErr(sb.result)
+    stdout("See STDERR for stack trace")
+    stderr(getStackTrace(e))
+  }
+
+  /** Initializes global Cloud Logging stdout and stderr */
   def configureStdout(logger:CloudLogger): Unit = {
     val outw: OutputStream =
       new BufferedCloudLoggerOutputStream("stdout", logger, Info, StandardCharsets.UTF_8)
     val errw: OutputStream =
       new BufferedCloudLoggerOutputStream("stderr", logger, Error, StandardCharsets.UTF_8)
-    clOut = new PrintStream(outw, false, "UTF-8")
-    clErr = new PrintStream(errw, false, "UTF-8")
-    Runtime.getRuntime.addShutdownHook(new CloserThread(clOut, clErr))
+    cloudLoggingStdOut = new PrintStream(outw, false, "UTF-8")
+    cloudLoggingStdErr = new PrintStream(errw, false, "UTF-8")
+    Runtime.getRuntime.addShutdownHook(new CloserThread(cloudLoggingStdOut, cloudLoggingStdErr))
+  }
+
+  val DefaultLayout = new PatternLayout("%d{ISO8601} %-5p %c %x - %m%n")
+
+  def createAppender(out: OutputStream,
+                     cs: Charset,
+                     level: Level = Level.DEBUG,
+                     layout: Layout = DefaultLayout): Appender = {
+    val appender = new WriterAppender(layout, new OutputStreamWriter(out, cs))
+    appender.setThreshold(level)
+    appender
+  }
+
+  def createCloudAppender(log: Log, level: Level, mdc: java.util.Map[String,Any]): Appender = {
+    val appender = new CloudLoggingAppender(log)
+    appender.setData(mdc)
+    appender.setThreshold(level)
+    appender
+  }
+
+  /** Sets global Cloud Logging instance */
+  def setCloudLoggingInstance(log: Log): Unit = {
+    cloudLoggingLogInstance = log
+    for ((_,logger) <- cloudLoggingLoggers) {
+      logger.setLog(log)
+    }
+  }
+
+  /** Sets MDC on global Cloud Logging instance */
+  def setCloudLoggingMdc(mdc: java.util.Map[String,Any]): Unit = {
+    cloudLoggingLogInstance match {
+      case log: CloudLog => log.putMdc(mdc)
+      case _ =>
+    }
+  }
+
+  /** Initializes global Cloud Logging instance
+   *  Adds CloudLoggingAppender to provided root logger
+   */
+  def configureCloudLogging(rootLogger: Logger,
+                            projectId: String,
+                            logId: String,
+                            credentials: Credentials,
+                            mdc: java.util.Map[String,Any]): Unit = {
+    Console.out.println(s"Initializing Cloud Logging...")
+    val cloudLog = new CloudLog(Services.logging(credentials), projectId, logId)
+    setCloudLoggingMdc(mdc)
+    setCloudLoggingInstance(cloudLog)
+
+    val logger: CloudLogger = getLogger("com.google.cloud.imf")
+    logger.setData(mdc)
+
+    configureStdout(logger)
+
+    // append individual error log messages to Cloud Logging
+    rootLogger.addAppender(createCloudAppender(cloudLog, Level.ERROR, mdc))
+
+    // append log messages to Cloud Logging stdout
+    rootLogger.addAppender(createAppender(cloudLoggingStdOut, StandardCharsets.UTF_8))
+
+    Console.out.println(s"Initialized Cloud Logging\nprojectId=$projectId\nlogId=$logId")
   }
 
   def configureLogging(debugOverride: Boolean = false,
                        env: Map[String,String] = sys.env,
                        errorLogs: Seq[String] = Seq.empty,
                        credentials: Credentials = null,
-                       data: java.util.Map[String,Any] = null): Unit = {
-    val debug = env.getOrElse("BQSH_ROOT_LOGGER","").contains("DEBUG") || debugOverride
+                       mdc: java.util.Map[String,Any] = null): Unit = {
+    val logLevel =
+      if (debugOverride || env.get("BQSH_ROOT_LOGGER").contains("DEBUG"))
+        Level.DEBUG
+      else Level.INFO
     val rootLogger = LogManager.getRootLogger
     rootLogger.removeAllAppenders()
-    val layout = new PatternLayout("%d{ISO8601} %-5p %c %x - %m%n")
-    rootLogger.addAppender(new WriterAppender(
-      layout, new OutputStreamWriter(System.out, Charset.defaultCharset())))
 
-    if (credentials != null && env.contains("LOG_PROJECT") && env.contains("LOG_ID")) {
-      val projectId = env("LOG_PROJECT")
-      val logId = env("LOG_ID")
-      System.out.println(s"Initializing Cloud Logging projectId=$projectId logId=$logId")
-      instance = new CloudLog(Services.logging(credentials), projectId, logId)
-      loggers.foreach(_._2.setLog(instance))
-      val appender = new StackDriverLoggingAppender(instance)
-      appender.setThreshold(org.apache.log4j.Level.ERROR)
-      rootLogger.addAppender(appender)
+    // append all log messages to stdout
+    rootLogger.addAppender(createAppender(System.out, Charset.defaultCharset()))
 
-      val logger: CloudLogger = getLogger("com.google.cloud.imf")
-      if (data != null)
-        logger.setData(data)
+    // append error log messages to stderr
+    rootLogger.addAppender(createAppender(System.err, Charset.defaultCharset(), Level.ERROR))
 
-      configureStdout(logger)
-      rootLogger.addAppender(new WriterAppender(layout,
-        new OutputStreamWriter(clOut, StandardCharsets.UTF_8)))
+    for {
+      projectId <- env.get("LOG_PROJECT")
+      logId <- env.get("LOG_ID")
+      cred <- Option(credentials)
+    } yield configureCloudLogging(rootLogger, projectId, logId, cred, mdc)
 
-      System.out.println("Finished initializing Cloud Logging.")
-    }
-
+    // Quiet third-party logs
     for (logger <- errorLogs)
       LogManager.getLogger(logger).setLevel(Level.ERROR)
 
-    if (debug) {
-      rootLogger.setLevel(Level.DEBUG)
-    } else {
-      rootLogger.setLevel(Level.INFO)
-    }
+    // Enable debug logging if requested
+    rootLogger.setLevel(logLevel)
   }
 
   def getLogger(loggerName: String): CloudLogger =
-    loggers.getOrElseUpdate(loggerName, new CloudLogger(loggerName, instance))
+    cloudLoggingLoggers.getOrElseUpdate(loggerName, new CloudLogger(loggerName, cloudLoggingLogInstance))
 
   def getLogger(cls: Class[_]): CloudLogger =
     getLogger(cls.getSimpleName.stripSuffix("$"))

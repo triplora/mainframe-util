@@ -15,7 +15,7 @@
  */
 organization := "com.google.cloud.imf"
 name := "mainframe-util"
-version := "2.0.0"
+version := "2.1.0"
 
 scalaVersion := "2.13.1"
 
@@ -52,7 +52,7 @@ libraryDependencies ++= Seq(
   "log4j" % "log4j" % "1.2.17",
   "org.apache.avro" % "avro" % "1.7.7",
   "org.slf4j" % "slf4j-api" % "1.7.30",
-  "org.slf4j" % "slf4j-log4j12" % "1.7.30",  
+  "org.slf4j" % "slf4j-log4j12" % "1.7.30",
 ).map(_ excludeAll(exGuava,exProto,exProtos,exGrpc,exC1,exC2,exConscrypt,exNettyShaded))
 
 libraryDependencies ++= Seq(
