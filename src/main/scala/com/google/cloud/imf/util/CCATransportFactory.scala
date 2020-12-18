@@ -5,9 +5,11 @@ import java.util.concurrent.TimeUnit
 import com.google.api.client.http.HttpTransport
 import com.google.api.client.http.apache.v2.ApacheHttpTransport
 import com.google.auth.http.HttpTransportFactory
+import com.google.common.collect.ImmutableList
 import org.apache.http.client.HttpClient
 import org.apache.http.config.SocketConfig
 import org.apache.http.impl.client.HttpClientBuilder
+import org.apache.http.message.BasicHeader
 
 /** Creates HttpTransport with Apache HTTP */
 object CCATransportFactory extends HttpTransportFactory {
@@ -35,6 +37,7 @@ object CCATransportFactory extends HttpTransportFactory {
       .setConnectionTimeToLive(-1, TimeUnit.MILLISECONDS)
       .disableRedirectHandling
       .disableAutomaticRetries
+      .setDefaultHeaders(ImmutableList.of(new BasicHeader("user-agent", Services.UserAgent)))
       .build
   }
 }

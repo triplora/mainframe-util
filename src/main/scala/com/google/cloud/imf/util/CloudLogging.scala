@@ -1,6 +1,6 @@
 package com.google.cloud.imf.util
 
-import java.io.{ByteArrayOutputStream, OutputStream, OutputStreamWriter, PrintStream, PrintWriter, StringWriter}
+import java.io.{ByteArrayOutputStream, OutputStream, OutputStreamWriter, PrintStream, PrintWriter, StringWriter, Writer}
 import java.nio.charset.{Charset, StandardCharsets}
 
 import com.google.api.services.logging.v2.Logging
@@ -269,11 +269,33 @@ object CloudLogging {
 
   val DefaultLayout = new PatternLayout("%d{ISO8601} %-5p %c %x - %m%n")
 
+  /** Wraps output at 80 characters */
+  case class SpoolWriter(w: Writer) extends Writer {
+    override def write(cbuf: Array[Char], off: Int, len: Int): Unit = {
+      var pos = off
+      var remaining = math.min(len, cbuf.length - off)
+      var n = 0
+      val limit = off + len
+      while (pos < limit && remaining > 0) {
+        n = math.min(80, remaining)
+        w.write(cbuf, pos, n)
+        w.write('\n')
+        remaining -= n
+        pos += n
+      }
+    }
+    override def flush(): Unit = w.flush()
+    override def close(): Unit = w.close()
+  }
+
   def createAppender(out: OutputStream,
-                     cs: Charset,
+                     cs: Charset = StandardCharsets.UTF_8,
                      level: Level = Level.DEBUG,
-                     layout: Layout = DefaultLayout): Appender = {
-    val appender = new WriterAppender(layout, new OutputStreamWriter(out, cs))
+                     layout: Layout = DefaultLayout,
+                     wrap: Boolean = true): Appender = {
+    val osw = new OutputStreamWriter(out, cs)
+    val writer = if (wrap) SpoolWriter(osw) else osw
+    val appender = new WriterAppender(layout, writer)
     appender.setThreshold(level)
     appender
   }
@@ -323,7 +345,7 @@ object CloudLogging {
     rootLogger.addAppender(createCloudAppender(cloudLog, Level.ERROR, mdc))
 
     // append log messages to Cloud Logging stdout
-    rootLogger.addAppender(createAppender(cloudLoggingStdOut, StandardCharsets.UTF_8))
+    rootLogger.addAppender(createAppender(cloudLoggingStdOut, wrap = false))
 
     Console.out.println(s"Initialized Cloud Logging\nprojectId=$projectId\nlogId=$logId")
   }
