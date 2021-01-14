@@ -20,10 +20,10 @@ object CCASSLSocketFactory extends SSLSocketFactory {
 
   final val TLS_1_2 = "TLSv1.2"
   final val Protocols = Array(TLS_1_2)
-  final val Ciphers = Array("TLS_RSA_WITH_AES_128_CBC_SHA")
-  final val Cipher2 = Array("TLS_RSA_WITH_AES_256_CBC_SHA")
-  final val Cipher3 = Array("TLS_RSA_WITH_AES_128_GCM_SHA256")
-  final val Cipher4 = Array("TLS_RSA_WITH_AES_256_GCM_SHA384")
+  final val Ciphers = Array(
+    "TLS_RSA_WITH_AES_128_CBC_SHA", // No Forward Secrecy, but implemented in hardware
+    "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256" // Forward Secrecy, preferred TLSv1.2 cipher
+  )
 
   private val factory: SSLSocketFactory = {
     val ciphers: String = Ciphers.mkString(",")

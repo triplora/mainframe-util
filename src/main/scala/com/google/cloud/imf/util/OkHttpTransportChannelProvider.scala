@@ -84,6 +84,7 @@ case class OkHttpTransportChannelProvider(endpoint: String = null,
     val serviceAddress = endpoint.substring(0, colon)
 
     OkHttpChannelBuilder.forAddress(serviceAddress, port)
+      .useTransportSecurity()
       .sslSocketFactory(CCASSLSocketFactory)
       .compressorRegistry(GzipCodec.compressorRegistry)
       .maxInboundMessageSize(Int.MaxValue)
