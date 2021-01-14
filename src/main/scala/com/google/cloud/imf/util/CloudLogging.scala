@@ -276,10 +276,17 @@ object CloudLogging {
       var remaining = math.min(len, cbuf.length - off)
       var n = 0
       val limit = off + len
+      var i = 0
       while (pos < limit && remaining > 0) {
-        n = math.min(80, remaining)
-        w.write(cbuf, pos, n)
-        w.write('\n')
+        i = cbuf.indexOf('\n', pos)
+        if (i < 0 || i - pos >= 80) {
+          n = math.min(80, remaining)
+          w.write(cbuf, pos, n)
+          w.write('\n')
+        } else {
+          n = math.min(i-pos+1, remaining)
+          w.write(cbuf, pos, n)
+        }
         remaining -= n
         pos += n
       }
