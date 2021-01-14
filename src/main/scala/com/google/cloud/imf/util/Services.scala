@@ -69,8 +69,11 @@ object Services {
   }
 
   def bigQueryApi(credentials: Credentials): com.google.api.services.bigquery.Bigquery = {
-    new com.google.api.services.bigquery.Bigquery(CCATransportFactory.getTransportInstance,
-      JacksonFactory.getDefaultInstance, new HttpCredentialsAdapter(credentials))
+    new com.google.api.services.bigquery.Bigquery.Builder(
+      CCATransportFactory.getTransportInstance,
+      JacksonFactory.getDefaultInstance,
+      new HttpCredentialsAdapter(credentials))
+      .setApplicationName(UserAgent).build()
   }
 
   def bigQueryStorage(credentials: Credentials): BigQueryReadClient = {
