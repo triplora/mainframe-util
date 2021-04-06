@@ -21,10 +21,10 @@ object Services {
   val headerProvider: HeaderProvider = FixedHeaderProvider.create("user-agent", UserAgent)
 
   private val retrySettings: RetrySettings = RetrySettings.newBuilder
-    .setMaxAttempts(2)
+    .setMaxAttempts(3)
     .setTotalTimeout(Duration.ofMinutes(30))
     .setInitialRetryDelay(Duration.ofSeconds(2))
-    .setMaxRetryDelay(Duration.ofSeconds(8))
+    .setMaxRetryDelay(Duration.ofSeconds(20))
     .setRetryDelayMultiplier(2.0d)
     .build
 
@@ -56,7 +56,23 @@ object Services {
   def bigqueryCredentials(): GoogleCredentials =
     GoogleCredentials.getApplicationDefault.createScoped(BigqueryScopes.BIGQUERY)
 
-  def bigQuery(project: String, location: String, credentials: Credentials): BigQuery = {
+  def bigQuery(project: String, location: String, credentials: Credentials): BigQuery =
+    bigQueryOptions(project, location, credentials).getService
+
+  /**
+   * [DON'T USE IN PRODUCTION]
+   * This service could be used in integration tests while mocking bigQuery client.
+   *
+   * @param project - bigQuery project
+   * @param location - bigQuery location
+   * @param credentials - bigQuery credentials
+   * @param host - where BigQuery is running
+   * @return BigQuery service which is running on provided host
+   */
+  def bigQuerySpec(project: String, location: String, credentials: Credentials, host: String): BigQuery =
+    bigQueryOptions(project, location, credentials).toBuilder.setHost(host).build().getService
+
+  private def bigQueryOptions(project: String, location: String, credentials: Credentials) =
     BigQueryOptions.newBuilder
       .setLocation(location)
       .setProjectId(project)
@@ -65,8 +81,6 @@ object Services {
       .setRetrySettings(retrySettings)
       .setHeaderProvider(headerProvider)
       .build
-      .getService
-  }
 
   def bigQueryApi(credentials: Credentials): com.google.api.services.bigquery.Bigquery = {
     new com.google.api.services.bigquery.Bigquery.Builder(

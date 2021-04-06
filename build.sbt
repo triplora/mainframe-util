@@ -15,7 +15,7 @@
  */
 organization := "com.google.cloud.imf"
 name := "mainframe-util"
-version := "2.1.4"
+version := "2.1.5"
 
 scalaVersion := "2.13.1"
 
@@ -34,7 +34,9 @@ val exProtos = ExclusionRule(organization = "com.google.api.grpc", name = "proto
 libraryDependencies ++= Seq(
   "com.google.guava" % "guava" % "30.0-jre",
   "com.github.scopt" %% "scopt" % "3.7.1",
-  "org.scalatest" %% "scalatest" % "3.1.1" % Test
+  "org.scalatest" %% "scalatest" % "3.1.1" % Test,
+  "org.mock-server" % "mockserver-netty" % "5.11.2" % Test,
+  "org.mock-server" % "mockserver-client-java" % "5.11.2" % Test
 )
 
 libraryDependencies ++= Seq(
