@@ -30,24 +30,28 @@ object Services {
   val UserAgent = "google-pso-tool/gszutil/5.0"
   val headerProvider: HeaderProvider = FixedHeaderProvider.create("user-agent", UserAgent)
 
-  private val retrySettings: RetrySettings = RetrySettings.newBuilder
-    .setMaxAttempts(3)
+  private def retrySettings(httpConfig: HttpConnectionConfigs): RetrySettings = RetrySettings.newBuilder
+    .setMaxAttempts(httpConfig.maxRetryAttempts)
     .setTotalTimeout(Duration.ofMinutes(30))
-    .setInitialRetryDelay(Duration.ofSeconds(2))
-    .setMaxRetryDelay(Duration.ofSeconds(20))
+    .setInitialRetryDelay(Duration.ofSeconds(10))
+    .setMaxRetryDelay(Duration.ofMinutes(2))
     .setRetryDelayMultiplier(2.0d)
+    .setMaxRpcTimeout(Duration.ofMinutes(2))
+    .setRpcTimeoutMultiplier(2.0d)
     .build
 
-  private val transportOptions: HttpTransportOptions = HttpTransportOptions.newBuilder
+  private def transportOptions(httpConfig: HttpConnectionConfigs): HttpTransportOptions = HttpTransportOptions.newBuilder
     .setHttpTransportFactory(CCATransportFactory)
+    .setConnectTimeout(httpConfig.connectTimeoutInMillis)
+    .setReadTimeout(httpConfig.readTimeoutInMillis)
     .build
 
   def storage(credentials: Credentials): Storage = {
     new StorageOptions.DefaultStorageFactory()
       .create(StorageOptions.newBuilder
         .setCredentials(credentials)
-        .setTransportOptions(transportOptions)
-        .setRetrySettings(retrySettings)
+        .setTransportOptions(transportOptions(HttpConnectionConfigs.storageHttpConnectionConfigs))
+        .setRetrySettings(retrySettings(HttpConnectionConfigs.storageHttpConnectionConfigs))
         .setHeaderProvider(headerProvider)
         .build)
   }
@@ -87,8 +91,8 @@ object Services {
       .setLocation(location)
       .setProjectId(project)
       .setCredentials(credentials)
-      .setTransportOptions(transportOptions)
-      .setRetrySettings(retrySettings)
+      .setTransportOptions(transportOptions(HttpConnectionConfigs.bgHttpConnectionConfigs))
+      .setRetrySettings(retrySettings(HttpConnectionConfigs.bgHttpConnectionConfigs))
       .setHeaderProvider(headerProvider)
       .build
 

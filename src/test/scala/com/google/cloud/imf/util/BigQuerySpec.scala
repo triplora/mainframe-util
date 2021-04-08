@@ -29,27 +29,27 @@ class BigQuerySpec extends MockedServerSpec {
   "Simulate delay on server side" should "perform retry BQ API calls when all calls failed"  in {
     //delay is longer then read timeout
     mockServer
-      .when(bqGetTableRequest, Times.exactly(3))
+      .when(bqGetTableRequest, Times.exactly(5))
       .respond(
         response()
-          .withBody("very heavy computation operation on the server")
-          .withDelay(TimeUnit.SECONDS, 21)
+          .withBody("heavy computation operation")
+          .withDelay(TimeUnit.SECONDS, 31000)
       )
 
     val resp = Try(bqService.getTable("datasetA", "tableA")).toEither
 
-    mockServer.verify(bqGetTableRequest, exactly(3))
+    mockServer.verify(bqGetTableRequest, exactly(5))
     assert(resp.isLeft)
   }
 
   "Simulate delay on server side" should "perform retry BQ API calls when last call successful"  in {
-    //first 2 call delay is longer then read timeout
+    //first 4 call delay is longer then read timeout
     mockServer
-      .when(bqGetTableRequest, Times.exactly(2))
+      .when(bqGetTableRequest, Times.exactly(4))
       .respond(
         response()
-          .withBody("very heavy computation operation on the server")
-          .withDelay(TimeUnit.SECONDS, 21)
+          .withBody("heavy computation operation")
+          .withDelay(TimeUnit.SECONDS, 31)
       )
 
     //last call delay is lees then read timeout
@@ -58,20 +58,20 @@ class BigQuerySpec extends MockedServerSpec {
       .respond(
         response()
           .withStatusCode(404)
-          .withDelay(TimeUnit.SECONDS, 19)
+          .withDelay(TimeUnit.SECONDS, 29)
       )
 
     val resp = Try(bqService.getTable("datasetA", "tableA")).toEither
 
-    //Expected: 2 first calls fails due to timeout, last success, table not found
-    mockServer.verify(bqGetTableRequest, exactly(3))
+    //Expected: 4 first calls fails due to timeout, last success, table not found
+    mockServer.verify(bqGetTableRequest, exactly(5))
     assert(resp.isRight)
   }
 
   "Simulate connection error" should "perform retry API calls"  in {
-    //delay is longer then read timeout
+    //this test controlled by retry settings in Apache http client
     mockServer
-      .when(bqGetTableRequest, Times.exactly(4))
+      .when(bqGetTableRequest)
       .error(
         error()
           .withDropConnection(true)
