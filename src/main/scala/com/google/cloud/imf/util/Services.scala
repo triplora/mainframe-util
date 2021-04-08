@@ -14,9 +14,19 @@ import com.google.cloud.bigquery.storage.v1.{BigQueryReadClient, BigQueryReadSet
 import com.google.cloud.bigquery.{BigQuery, BigQueryOptions}
 import com.google.cloud.http.HttpTransportOptions
 import com.google.cloud.storage.{Storage, StorageOptions}
+import org.slf4j.bridge.SLF4JBridgeHandler
 import org.threeten.bp.Duration
 
+import java.util.logging.{Level, Logger}
+
 object Services {
+  {
+    //static block to initialize and configure redirect from java.util.logging to slf4j logger
+    SLF4JBridgeHandler.removeHandlersForRootLogger()
+    SLF4JBridgeHandler.install()
+    Logger.getLogger("").setLevel(Level.ALL)
+  }
+
   val UserAgent = "google-pso-tool/gszutil/5.0"
   val headerProvider: HeaderProvider = FixedHeaderProvider.create("user-agent", UserAgent)
 

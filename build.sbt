@@ -43,8 +43,8 @@ libraryDependencies ++= Seq(
   "com.google.cloud" % "google-cloud-core-http" % "1.94.0",
   "com.google.http-client" % "google-http-client-apache-v2" % "1.38.0",
   "com.google.api" % "gax-grpc" % "1.60.0",
-).map(_ excludeAll(exGuava))
-  .map(_ excludeAll(exGrpc))
+).map(_ excludeAll (exGuava))
+  .map(_ excludeAll (exGrpc))
 
 libraryDependencies ++= Seq(
   "com.google.apis" % "google-api-services-logging" % "v2-rev20201101-1.30.10",
@@ -55,11 +55,12 @@ libraryDependencies ++= Seq(
   "org.apache.avro" % "avro" % "1.7.7",
   "org.slf4j" % "slf4j-api" % "1.7.30",
   "org.slf4j" % "slf4j-log4j12" % "1.7.30",
-).map(_ excludeAll(exGuava,exProto,exProtos,exGrpc,exC1,exC2,exConscrypt,exNettyShaded))
+  "org.slf4j" % "jul-to-slf4j" % "1.7.30"
+).map(_ excludeAll(exGuava, exProto, exProtos, exGrpc, exC1, exC2, exConscrypt, exNettyShaded))
 
 libraryDependencies ++= Seq(
   "io.grpc" % "grpc-all" % grpcVersion
-).map(_ excludeAll(exGuava,exProto,exProtos,exC1,exC2,exConscrypt,exNettyShaded))
+).map(_ excludeAll(exGuava, exProto, exProtos, exC1, exC2, exConscrypt, exNettyShaded))
 
 
 // Don't run tests during assembly
@@ -86,7 +87,6 @@ resourceGenerators in Compile += Def.task {
   IO.write(file, timestamp)
   Seq(file)
 }.taskValue
-
 scalacOptions ++= Seq(
   "-opt:l:inline",
   "-opt-inline-from:**",
