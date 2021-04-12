@@ -14,30 +14,44 @@ import com.google.cloud.bigquery.storage.v1.{BigQueryReadClient, BigQueryReadSet
 import com.google.cloud.bigquery.{BigQuery, BigQueryOptions}
 import com.google.cloud.http.HttpTransportOptions
 import com.google.cloud.storage.{Storage, StorageOptions}
+import org.slf4j.bridge.SLF4JBridgeHandler
 import org.threeten.bp.Duration
 
+import java.util.logging.{Level, Logger}
+
 object Services {
+  {
+    //static block to initialize and configure redirect from java.util.logging to slf4j logger
+    SLF4JBridgeHandler.removeHandlersForRootLogger()
+    SLF4JBridgeHandler.install()
+    Logger.getLogger("").setLevel(Level.ALL)
+  }
+
   val UserAgent = "google-pso-tool/gszutil/5.0"
   val headerProvider: HeaderProvider = FixedHeaderProvider.create("user-agent", UserAgent)
 
-  private val retrySettings: RetrySettings = RetrySettings.newBuilder
-    .setMaxAttempts(2)
+  private def retrySettings(httpConfig: HttpConnectionConfigs): RetrySettings = RetrySettings.newBuilder
+    .setMaxAttempts(httpConfig.maxRetryAttempts)
     .setTotalTimeout(Duration.ofMinutes(30))
-    .setInitialRetryDelay(Duration.ofSeconds(2))
-    .setMaxRetryDelay(Duration.ofSeconds(8))
+    .setInitialRetryDelay(Duration.ofSeconds(10))
+    .setMaxRetryDelay(Duration.ofMinutes(2))
     .setRetryDelayMultiplier(2.0d)
+    .setMaxRpcTimeout(Duration.ofMinutes(2))
+    .setRpcTimeoutMultiplier(2.0d)
     .build
 
-  private val transportOptions: HttpTransportOptions = HttpTransportOptions.newBuilder
+  private def transportOptions(httpConfig: HttpConnectionConfigs): HttpTransportOptions = HttpTransportOptions.newBuilder
     .setHttpTransportFactory(CCATransportFactory)
+    .setConnectTimeout(httpConfig.connectTimeoutInMillis)
+    .setReadTimeout(httpConfig.readTimeoutInMillis)
     .build
 
   def storage(credentials: Credentials): Storage = {
     new StorageOptions.DefaultStorageFactory()
       .create(StorageOptions.newBuilder
         .setCredentials(credentials)
-        .setTransportOptions(transportOptions)
-        .setRetrySettings(retrySettings)
+        .setTransportOptions(transportOptions(HttpConnectionConfigs.storageHttpConnectionConfigs))
+        .setRetrySettings(retrySettings(HttpConnectionConfigs.storageHttpConnectionConfigs))
         .setHeaderProvider(headerProvider)
         .build)
   }
@@ -56,17 +70,31 @@ object Services {
   def bigqueryCredentials(): GoogleCredentials =
     GoogleCredentials.getApplicationDefault.createScoped(BigqueryScopes.BIGQUERY)
 
-  def bigQuery(project: String, location: String, credentials: Credentials): BigQuery = {
+  def bigQuery(project: String, location: String, credentials: Credentials): BigQuery =
+    bigQueryOptions(project, location, credentials).getService
+
+  /**
+   * [DON'T USE IN PRODUCTION]
+   * This service could be used in integration tests while mocking bigQuery client.
+   *
+   * @param project - bigQuery project
+   * @param location - bigQuery location
+   * @param credentials - bigQuery credentials
+   * @param host - where BigQuery is running
+   * @return BigQuery service which is running on provided host
+   */
+  def bigQuerySpec(project: String, location: String, credentials: Credentials, host: String): BigQuery =
+    bigQueryOptions(project, location, credentials).toBuilder.setHost(host).build().getService
+
+  private def bigQueryOptions(project: String, location: String, credentials: Credentials) =
     BigQueryOptions.newBuilder
       .setLocation(location)
       .setProjectId(project)
       .setCredentials(credentials)
-      .setTransportOptions(transportOptions)
-      .setRetrySettings(retrySettings)
+      .setTransportOptions(transportOptions(HttpConnectionConfigs.bgHttpConnectionConfigs))
+      .setRetrySettings(retrySettings(HttpConnectionConfigs.bgHttpConnectionConfigs))
       .setHeaderProvider(headerProvider)
       .build
-      .getService
-  }
 
   def bigQueryApi(credentials: Credentials): com.google.api.services.bigquery.Bigquery = {
     new com.google.api.services.bigquery.Bigquery.Builder(
