@@ -17,13 +17,13 @@ import com.google.cloud.storage.{Storage, StorageOptions}
 import org.slf4j.bridge.SLF4JBridgeHandler
 import org.threeten.bp.Duration
 
-import java.util.logging.{Level, Logger}
+import java.util.logging.{Level, LogManager, Logger}
 
 object Services {
   {
     //static block to initialize and configure redirect from java.util.logging to slf4j logger
     SLF4JBridgeHandler.removeHandlersForRootLogger()
-    SLF4JBridgeHandler.install()
+    LogManager.getLogManager.getLogger("").addHandler(new SLF4JBridgeHandlerForGaxRetry)
     Logger.getLogger("").setLevel(Level.ALL)
   }
 
