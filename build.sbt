@@ -51,7 +51,6 @@ libraryDependencies ++= Seq(
   "com.google.cloud" % "google-cloud-bigquery" % "1.124.3",
   "com.google.cloud" % "google-cloud-bigquerystorage" % "1.6.1",
   "com.google.cloud" % "google-cloud-storage" % "1.113.3",
-  "log4j" % "log4j" % "1.2.17",
   "org.apache.avro" % "avro" % "1.7.7",
   "org.slf4j" % "slf4j-api" % "1.7.30",
   "org.slf4j" % "slf4j-log4j12" % "1.7.30",

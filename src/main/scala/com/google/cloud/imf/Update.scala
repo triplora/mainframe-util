@@ -5,7 +5,7 @@ import java.nio.file.{Files, Path, Paths}
 
 import com.google.api.services.storage.StorageScopes
 import com.google.auth.oauth2.GoogleCredentials
-import com.google.cloud.imf.util.{CloudLogging, PageIterator, Services}
+import com.google.cloud.imf.util.{PageIterator, Services}
 import com.google.cloud.storage.Storage.BlobListOption
 import com.google.cloud.storage.{Blob, BlobId}
 
@@ -30,8 +30,6 @@ object Update {
     } else {
       GoogleCredentials.getApplicationDefault().createScoped(StorageScopes.DEVSTORAGE_READ_ONLY)
     }
-
-    CloudLogging.configureLogging(credentials = creds, errorLogs = Seq("org.apache.http","io.grpc"))
 
     val gcs = Services.storage(creds)
 
