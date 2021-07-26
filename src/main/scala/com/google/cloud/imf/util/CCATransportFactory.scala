@@ -12,8 +12,10 @@ import org.apache.http.impl.client.{HttpClientBuilder, StandardHttpRequestRetryH
 import org.apache.http.message.BasicHeader
 
 /** Creates HttpTransport with Apache HTTP */
-object CCATransportFactory extends HttpTransportFactory {
+object CCATransportFactory extends HttpTransportFactory with Logging {
   private var Instance: ApacheHttpTransport = _
+
+  private val maxConnectionTotal = math.max(Runtime.getRuntime.availableProcessors(), 32) * 2
 
   override def create(): HttpTransport = CCATransportFactory.getTransportInstance
 
@@ -24,16 +26,18 @@ object CCATransportFactory extends HttpTransportFactory {
 
   def newDefaultHttpClient: HttpClient = {
     val socketConfig = SocketConfig.custom
-      .setRcvBufSize(256*1024)
-      .setSndBufSize(256*1024)
+      .setRcvBufSize(256 * 1024)
+      .setSndBufSize(256 * 1024)
       .build
+
+    logger.info(s"New http client was created with connection pool size $maxConnectionTotal")
 
     HttpClientBuilder.create
       .useSystemProperties
       .setSSLSocketFactory(CCASSLSocketFactory.getInstance)
       .setDefaultSocketConfig(socketConfig)
-      .setMaxConnTotal(32)
-      .setMaxConnPerRoute(32)
+      .setMaxConnTotal(maxConnectionTotal)
+      .setMaxConnPerRoute(maxConnectionTotal)
       .setConnectionTimeToLive(-1, TimeUnit.MILLISECONDS)
       .disableRedirectHandling
       .setRetryHandler(new StandardHttpRequestRetryHandler)
