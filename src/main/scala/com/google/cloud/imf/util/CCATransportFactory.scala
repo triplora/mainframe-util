@@ -6,7 +6,7 @@ import com.google.api.client.http.HttpTransport
 import com.google.api.client.http.apache.v2.ApacheHttpTransport
 import com.google.auth.http.HttpTransportFactory
 import com.google.common.collect.ImmutableList
-import org.apache.http.client.{HttpClient}
+import org.apache.http.client.HttpClient
 import org.apache.http.config.SocketConfig
 import org.apache.http.impl.client.{HttpClientBuilder, StandardHttpRequestRetryHandler}
 import org.apache.http.message.BasicHeader
@@ -15,7 +15,18 @@ import org.apache.http.message.BasicHeader
 object CCATransportFactory extends HttpTransportFactory with Logging {
   private var Instance: ApacheHttpTransport = _
 
-  private val maxConnectionTotal = math.max(Runtime.getRuntime.availableProcessors(), 32) * 2
+  //Http client is shared between BqClient, BqStorageApi, GCStorage clients.
+  //There are workloads, like Parallel Export, that will try to open one read and one write http connection per cpu.
+  //Plus some logic could use additional connection for getting service information, like info about table or status of query execution.
+
+  //connections_per_request = cpus_count * (1 read bq connection + 1 write gcc connection + 1 service connection)
+  //connections_per_request = cpus_count * 3;
+  //requests_count = cpus_count
+  //maxConnectionTotal = requests_count * connections_per_request
+  //maxConnectionTotal = 1 * connections_per_request
+  private val connectionsPerRequest = 3 // 1 read bq connection + 1 write gcc connection + 1 service connection
+  private val maxConnectionTotal = sys.env.get("HTTP_CLIENT_MAX_CONNECTIONS_COUNT").flatMap(_.toIntOption)
+    .getOrElse(Runtime.getRuntime.availableProcessors() * connectionsPerRequest)
 
   override def create(): HttpTransport = CCATransportFactory.getTransportInstance
 
