@@ -19,12 +19,12 @@ object CCATransportFactory extends HttpTransportFactory with Logging {
   //There are workloads, like Parallel Export, that will try to open one read and one write http connection per cpu.
   //Plus some logic could use additional connection for getting service information, like info about table or status of query execution.
 
-  //connections_per_request = cpus_count * (1 read bq connection + 1 write gcc connection + 1 service connection)
-  //connections_per_request = cpus_count * 3;
+  //connections_per_request = cpus_count * (1 read or write bq/gcs connection + 1 service connection)
+  //connections_per_request = cpus_count * 2;
   //requests_count = cpus_count
   //maxConnectionTotal = requests_count * connections_per_request
   //maxConnectionTotal = 1 * connections_per_request
-  private val connectionsPerRequest = 3 // 1 read bq connection + 1 write gcc connection + 1 service connection
+  private val connectionsPerRequest = 2 // 1 read or write bq/gcs connection + 1 service connection
   private val maxConnectionTotal = sys.env.get("HTTP_CLIENT_MAX_CONNECTIONS_COUNT").flatMap(_.toIntOption)
     .getOrElse(Runtime.getRuntime.availableProcessors() * connectionsPerRequest)
 
