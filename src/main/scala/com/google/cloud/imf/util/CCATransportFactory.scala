@@ -15,18 +15,16 @@ import org.apache.http.message.BasicHeader
 object CCATransportFactory extends HttpTransportFactory with Logging {
   private var Instance: ApacheHttpTransport = _
 
-  //Http client is shared between BqClient, BqStorageApi, GCStorage clients.
-  //There are workloads, like Parallel Export, that will try to open one read and one write http connection per cpu.
-  //Plus some logic could use additional connection for getting service information, like info about table or status of query execution.
-
-  //connections_per_request = cpus_count * (1 read or write bq/gcs connection + 1 service connection)
-  //connections_per_request = cpus_count * 2;
-  //requests_count = cpus_count
-  //maxConnectionTotal = requests_count * connections_per_request
-  //maxConnectionTotal = 1 * connections_per_request
-  private val connectionsPerRequest = 2 // 1 read or write bq/gcs connection + 1 service connection
+  //Http client is shared between BqClient, BqStorage, GCStorage clients.
+  //There are workloads, like Parallel Export, that use thread pools to parallelize read/write data.
+  //For such workloads one http connection per thread at thread pool is required.
+  //Formula for pool size:
+  //maxConnectionTotal = JOB_THREAD_POOL_SIZE * JOBS_IN_PARALLEL_COUNT
+  //JOB_THREAD_POOL_SIZE - by default it is a vCPU count
+  //JOBS_IN_PARALLEL_COUNT - by default it is 5, need load tests to detect proper number.
+  private val parallelRequestsCount = 5
   private val maxConnectionTotal = sys.env.get("HTTP_CLIENT_MAX_CONNECTIONS_COUNT").flatMap(_.toIntOption)
-    .getOrElse(Runtime.getRuntime.availableProcessors() * connectionsPerRequest)
+    .getOrElse(Runtime.getRuntime.availableProcessors() * parallelRequestsCount)
 
   override def create(): HttpTransport = CCATransportFactory.getTransportInstance
 
@@ -41,7 +39,7 @@ object CCATransportFactory extends HttpTransportFactory with Logging {
       .setSndBufSize(256 * 1024)
       .build
 
-    logger.info(s"New http client was created with connection pool size $maxConnectionTotal")
+    logger.info(s"Http client was created. (MaxConnTotal=$maxConnectionTotal)")
 
     HttpClientBuilder.create
       .useSystemProperties
