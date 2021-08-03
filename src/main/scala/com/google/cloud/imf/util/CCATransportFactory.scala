@@ -14,17 +14,15 @@ import org.apache.http.message.BasicHeader
 /** Creates HttpTransport with Apache HTTP */
 object CCATransportFactory extends HttpTransportFactory with Logging {
   private var Instance: ApacheHttpTransport = _
-
   //Http client is shared between BqClient, BqStorage, GCStorage clients.
   //There are workloads, like Parallel Export, that use thread pools to parallelize read/write data.
   //For such workloads one http connection per thread at thread pool is required.
   //Formula for pool size:
   //maxConnectionTotal = JOB_THREAD_POOL_SIZE * JOBS_IN_PARALLEL_COUNT
   //JOB_THREAD_POOL_SIZE - by default it is a vCPU count
-  //JOBS_IN_PARALLEL_COUNT - by default it is 5, need load tests to detect proper number.
-  private val parallelRequestsCount = 5
+  //JOBS_IN_PARALLEL_COUNT - by default it is 1, need load tests to detect proper number.
   private val maxConnectionTotal = sys.env.get("HTTP_CLIENT_MAX_CONNECTIONS_COUNT").flatMap(_.toIntOption)
-    .getOrElse(Runtime.getRuntime.availableProcessors() * parallelRequestsCount)
+    .getOrElse(math.max(32, Runtime.getRuntime.availableProcessors()))
 
   override def create(): HttpTransport = CCATransportFactory.getTransportInstance
 
