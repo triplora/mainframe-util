@@ -4,6 +4,6 @@ import org.apache.log4j.{LogManager, Logger}
 
 trait Logging {
   @transient
-  protected implicit lazy val logger: Logger =
+  protected lazy val logger: Logger =
     LogManager.getLogger(this.getClass.getSimpleName.stripSuffix("$"))
 }
