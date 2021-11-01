@@ -10,12 +10,10 @@ import org.apache.http.conn.ssl.SSLConnectionSocketFactory
 
 /** Disables ciphers not supported by IBM Crypto Cards */
 object CCASSLSocketFactory extends SSLSocketFactory {
-  private var Instance: SSLConnectionSocketFactory = _
 
-  def getInstance: SSLConnectionSocketFactory = {
-    if (Instance == null) Instance = new SSLConnectionSocketFactory(this,
+  def create: SSLConnectionSocketFactory = {
+     new SSLConnectionSocketFactory(this,
       Protocols, Ciphers, Option[javax.net.ssl.HostnameVerifier](null).orNull)
-    Instance
   }
 
   final val TLS_1_2 = "TLSv1.2"

@@ -66,7 +66,7 @@ object Services {
 
   /** Low-level GCS client */
   def storageApi(credentials: Credentials): com.google.api.services.storage.Storage = {
-    new com.google.api.services.storage.Storage(CCATransportFactory.getTransportInstance,
+    new com.google.api.services.storage.Storage(CCATransportFactory.create,
       JacksonFactory.getDefaultInstance, new HttpCredentialsAdapter(credentials))
   }
 
@@ -104,7 +104,7 @@ object Services {
 
   def bigQueryApi(credentials: Credentials): com.google.api.services.bigquery.Bigquery = {
     new com.google.api.services.bigquery.Bigquery.Builder(
-      CCATransportFactory.getTransportInstance,
+      CCATransportFactory.create,
       JacksonFactory.getDefaultInstance,
       new HttpCredentialsAdapter(credentials))
       .setApplicationName(UserAgent).build()
@@ -123,7 +123,7 @@ object Services {
     GoogleCredentials.getApplicationDefault.createScoped(LoggingScopes.LOGGING_WRITE)
 
   def logging(credentials: Credentials): Logging =
-    new Logging.Builder(CCATransportFactory.getTransportInstance,
+    new Logging.Builder(CCATransportFactory.create,
       JacksonFactory.getDefaultInstance,
       new HttpCredentialsAdapter(credentials))
       .setApplicationName(UserAgent).build

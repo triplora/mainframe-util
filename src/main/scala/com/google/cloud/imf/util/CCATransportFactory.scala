@@ -13,7 +13,6 @@ import org.apache.http.message.BasicHeader
 
 /** Creates HttpTransport with Apache HTTP */
 object CCATransportFactory extends HttpTransportFactory with Logging {
-  private var Instance: ApacheHttpTransport = _
   //Http client is shared between BqClient, BqStorage, GCStorage clients.
   //There are workloads, like Parallel Export, that use thread pools to parallelize read/write data.
   //For such workloads one http connection per thread at thread pool is required.
@@ -24,12 +23,8 @@ object CCATransportFactory extends HttpTransportFactory with Logging {
   private val maxConnectionTotal = sys.env.get("HTTP_CLIENT_MAX_CONNECTIONS_COUNT").flatMap(_.toIntOption)
     .getOrElse(math.max(32, Runtime.getRuntime.availableProcessors()))
 
-  override def create(): HttpTransport = CCATransportFactory.getTransportInstance
+  override def create: HttpTransport = new ApacheHttpTransport(newDefaultHttpClient)
 
-  def getTransportInstance: ApacheHttpTransport = {
-    if (Instance == null) Instance = new ApacheHttpTransport(newDefaultHttpClient)
-    Instance
-  }
 
   def newDefaultHttpClient: HttpClient = {
     val socketConfig = SocketConfig.custom
@@ -41,7 +36,7 @@ object CCATransportFactory extends HttpTransportFactory with Logging {
 
     HttpClientBuilder.create
       .useSystemProperties
-      .setSSLSocketFactory(CCASSLSocketFactory.getInstance)
+      .setSSLSocketFactory(CCASSLSocketFactory.create)
       .setDefaultSocketConfig(socketConfig)
       .setMaxConnTotal(maxConnectionTotal)
       .setMaxConnPerRoute(maxConnectionTotal)
