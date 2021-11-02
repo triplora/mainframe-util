@@ -30,6 +30,9 @@ object Services {
   val UserAgent = "google-pso-tool/gszutil/5.0"
   val headerProvider: HeaderProvider = FixedHeaderProvider.create("user-agent", UserAgent)
 
+  val l2RetriesCount: Int = sys.env.get("GOOGLE_API_L2_RETRY_COUNT").flatMap(_.toIntOption).getOrElse(3)
+  val l2RetriesTimeoutMillis: Int = sys.env.get("GOOGLE_API_L2_RETRY_TIMEOUT_SECONDS").flatMap(_.toIntOption).getOrElse(5) * 1000
+
   private def retrySettings(httpConfig: HttpConnectionConfigs): RetrySettings = RetrySettings.newBuilder
     .setMaxAttempts(httpConfig.maxRetryAttempts)
     .setTotalTimeout(Duration.ofMinutes(30))
@@ -47,13 +50,13 @@ object Services {
     .build
 
   def storage(credentials: Credentials): Storage = {
-    new StorageOptions.DefaultStorageFactory()
+    new StorageWithRetries(new StorageOptions.DefaultStorageFactory()
       .create(StorageOptions.newBuilder
         .setCredentials(credentials)
         .setTransportOptions(transportOptions(HttpConnectionConfigs.storageHttpConnectionConfigs))
         .setRetrySettings(retrySettings(HttpConnectionConfigs.storageHttpConnectionConfigs))
         .setHeaderProvider(headerProvider)
-        .build)
+        .build), l2RetriesCount, l2RetriesTimeoutMillis)
   }
 
   def storageCredentials(): GoogleCredentials =
@@ -71,20 +74,23 @@ object Services {
     GoogleCredentials.getApplicationDefault.createScoped(BigqueryScopes.BIGQUERY)
 
   def bigQuery(project: String, location: String, credentials: Credentials): BigQuery =
-    bigQueryOptions(project, location, credentials).getService
+    new BigQueryWithRetries(
+      bigQueryOptions(project, location, credentials).getService,
+      l2RetriesCount, l2RetriesTimeoutMillis)
 
   /**
    * [DON'T USE IN PRODUCTION]
    * This service could be used in integration tests while mocking bigQuery client.
    *
-   * @param project - bigQuery project
-   * @param location - bigQuery location
+   * @param project     - bigQuery project
+   * @param location    - bigQuery location
    * @param credentials - bigQuery credentials
-   * @param host - where BigQuery is running
+   * @param host        - where BigQuery is running
    * @return BigQuery service which is running on provided host
    */
   def bigQuerySpec(project: String, location: String, credentials: Credentials, host: String): BigQuery =
-    bigQueryOptions(project, location, credentials).toBuilder.setHost(host).build().getService
+    new BigQueryWithRetries(bigQueryOptions(project, location, credentials).toBuilder.setHost(host).build().getService,
+      l2RetriesCount, l2RetriesTimeoutMillis)
 
   private def bigQueryOptions(project: String, location: String, credentials: Credentials) =
     BigQueryOptions.newBuilder
