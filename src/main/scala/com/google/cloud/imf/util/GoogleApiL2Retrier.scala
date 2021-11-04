@@ -5,8 +5,11 @@ trait GoogleApiL2Retrier {
   val retriesTimeoutMillis:Int
 
   protected def runWithRetry[A](f: => A, message: String, canRetry: Throwable => Boolean = _ => true): A =
-    RetryHelper.retryable(f, message, retriesCount, retriesTimeoutMillis, canRetry) match {
+    RetryHelper.retryableOnError(f, message, retriesCount, retriesTimeoutMillis, canRetry) match {
       case Left(ex) => throw ex
       case Right(value) => value
     }
+
+  protected def runWithRetries[A](f: => A, message: String, canRetry: A => Boolean): A =
+    RetryHelper.retryableOnResponse(f, message, retriesCount, retriesTimeoutMillis, canRetry)
 }
