@@ -63,6 +63,6 @@ object RetryHelper extends Logging {
    * For second attempt delays could be: 4000, 6000, 8000, 10000, 12000, 14000, 16000, 18000, 20000 .... 40000 ms
    *
    */
-  private def calculateDelay(currentAttempt: Int, initialDelay: Int): Int =
+  def calculateDelay(currentAttempt: Int, initialDelay: Int): Int =
     math.min(Random.between(currentAttempt, currentAttempt * Multiplier) * initialDelay, MaxAllowedDelay)
 }
