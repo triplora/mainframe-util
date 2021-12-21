@@ -15,7 +15,7 @@
  */
 organization := "com.google.cloud.imf"
 name := "mainframe-util"
-version := "2.1.9"
+version := "2.1.10"
 
 scalaVersion := "2.13.1"
 
